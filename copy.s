@@ -2,7 +2,7 @@
 	.text
 	.section	.rodata
 .LC0:
-	.string	"Thirteenth Fibonnaci number is ! = %d\n"
+	.string	"Thirteenth Fibonnaci number is %d\n"
 	.text
 	.globl	main
 	.type	main, @function
@@ -15,13 +15,13 @@ main:
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
 	subq	$32, %rsp
-    movl    $13, %ebx   /*counter*/
-	movl	$0, %edi    /*a number*/
-    movl    $1, %esi    /*b number*/
+    /* movl    $13, %ebx  ... counter isn't needed*/
+	movl	$13, %edi    /* This is the input argument register */
+    /* movl    $1, %esi    */
 	call	my_fact
-	movl	%eax, -4(%rbp)
-	movl	-4(%rbp), %eax
-	movl	%eax, %esi
+	/* movl	%eax, -4(%rbp) ... compiler did this I don't think it's needed */
+	/* movl	-4(%rbp), %eax ... same here */
+	movl	%eax, %esi /* Output of your function should be in %eax */
 	leaq	.LC0(%rip), %rdi
 	movl	$0, %eax
 	call	printf@PLT
@@ -42,19 +42,23 @@ my_fact:
 	.cfi_offset 6, -16
 	movq	%rsp, %rbp
 	.cfi_def_cfa_register 6
-	subq	$32, %rsi
-	movl	%edi, -4(%rbp)   /* -4rsp = a*/
-	cmpl	$1, %ebx
+	subq	$32, %rsp       /* This needs to be RSP not RSI */
+	movl	%edi, -4(%rbp)  /* -4rsp = a ... Good */
+	cmpl	$1, %edi        /* EBX isn't being used at this point, I think you meant EDI */
 	jg	.L4
 	movl	$1, %eax
 	jmp	.L5       /*clean up*/
 .L4:             
-	subl	$1, %ebx   /*counter-1*/
-    movl    %esi,-8(%rbp)
-	movl	-4(%rbp), %eax   
-    call	my_fact
-    addl	-8(%rbp),%esi
-	movl    %esi, %eax 
+    movl    -4(%rbp), %edi  /* Here is an example of how to 'refresh' the input argument register from the stack*/
+	subl	$1, %edi        /* Maybe there's some confusion here, input argument register is EDI */
+    /* movl    %esi,-8(%rbp)
+	movl	-4(%rbp), %eax ... Not sure why there's so many statements here */   
+    call	my_fact /* This only takes one argument via RDI */
+    addl	%eax, -8(%rbp) /* Place the return value onto the stack */
+    movl    -4(%rbp), %edi  /* Get the original value of 'n' */
+    subl    $1, %edi
+    call    my_fact
+    addl    -8(%rbp), %eax
     
 .L5:
 	leave
